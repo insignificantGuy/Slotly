@@ -9,5 +9,15 @@ CREATE TABLE IF NOT EXISTS companies (
     UNIQUE KEY uni_companies_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- Seed company referenced by company_role_mappings and listings.
+INSERT INTO companies (company_id, password, email, created_at, updated_at)
+VALUES (
+    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    'password',
+    'company@test.com',
+    CURRENT_TIMESTAMP(3),
+    CURRENT_TIMESTAMP(3)
+);
+
 -- +goose Down
 DROP TABLE IF EXISTS companies;

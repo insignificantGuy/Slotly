@@ -12,5 +12,17 @@ CREATE TABLE IF NOT EXISTS users (
     UNIQUE KEY uni_users_phone_number (phone_number)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- Seed user referenced by user_role_mappings.
+INSERT INTO users (user_id, full_name, email, password, phone_number, created_at, updated_at)
+VALUES (
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    'Test User',
+    'test@test.com',
+    'password',
+    '1234567890',
+    CURRENT_TIMESTAMP(3),
+    CURRENT_TIMESTAMP(3)
+);
+
 -- +goose Down
 DROP TABLE IF EXISTS users;

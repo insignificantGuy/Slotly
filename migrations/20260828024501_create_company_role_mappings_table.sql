@@ -17,5 +17,13 @@ CREATE TABLE IF NOT EXISTS company_role_mappings (
         ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+INSERT INTO company_role_mappings (created_at, updated_at, company_id, role_id)
+VALUES (
+    CURRENT_TIMESTAMP(3),
+    CURRENT_TIMESTAMP(3),
+    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    1
+);
+
 -- +goose Down
 DROP TABLE IF EXISTS company_role_mappings;
