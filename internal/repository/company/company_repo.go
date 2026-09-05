@@ -2,6 +2,7 @@ package company
 
 import (
 	"context"
+	"errors"
 
 	model "github.com/insignificantGuy/Slotly/internal/models"
 	"github.com/insignificantGuy/Slotly/internal/repository"
@@ -25,15 +26,19 @@ func (r *companyRepository) RegisterCompany(ctx context.Context, company *model.
 }
 
 func (r *companyRepository) FetchCompanyByID(ctx context.Context, id string) (*model.Company, error) {
-	return r.BaseRepository.Get(ctx, id)
+	var entity model.Company
+	err := r.db.WithContext(ctx).First(&entity, "company_id = ?", id).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, repository.ErrNotFound
+		}
+		return nil, err
+	}
+	return &entity, nil
 }
 
 func (r *companyRepository) UpdateCompany(ctx context.Context, company *model.Company) error {
 	return r.BaseRepository.Update(ctx, company)
-}
-
-func (r *companyRepository) DeleteCompany(ctx context.Context, id string) error {
-	return r.BaseRepository.Delete(ctx, id)
 }
 
 func (r *companyRepository) FetchCompanies(ctx context.Context, offset, limit int) ([]model.Company, error) {

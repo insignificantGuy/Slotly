@@ -10,6 +10,8 @@ type User struct {
 	Email       string    `gorm:"size:255;unique"`
 	Password    string    `gorm:"size:255"`
 	PhoneNumber string    `gorm:"size:20;unique"`
+	IsDeleted   bool      `gorm:"default:false"`
+	DeletedAt   time.Time `gorm:"type:datetime(3)"`
 	CreatedAt   time.Time `gorm:"type:datetime(3);autoCreateTime"`
 	UpdatedAt   time.Time `gorm:"type:datetime(3);autoUpdateTime"`
 }

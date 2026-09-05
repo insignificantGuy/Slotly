@@ -5,6 +5,8 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255),
     password VARCHAR(255),
     phone_number VARCHAR(20),
+    is_deleted TINYINT(1) NOT NULL DEFAULT 0,
+    deleted_at DATETIME(3),
     created_at DATETIME(3),
     updated_at DATETIME(3),
     PRIMARY KEY (user_id),
@@ -13,13 +15,14 @@ CREATE TABLE IF NOT EXISTS users (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Seed user referenced by user_role_mappings.
-INSERT INTO users (user_id, full_name, email, password, phone_number, created_at, updated_at)
+INSERT INTO users (user_id, full_name, email, password, phone_number, is_deleted, created_at, updated_at)
 VALUES (
     'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
     'Test User',
     'test@test.com',
     'password',
     '1234567890',
+    0,
     CURRENT_TIMESTAMP(3),
     CURRENT_TIMESTAMP(3)
 );

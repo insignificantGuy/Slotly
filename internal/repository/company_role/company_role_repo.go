@@ -2,6 +2,7 @@ package companyrole
 
 import (
 	"context"
+	"errors"
 
 	"github.com/insignificantGuy/Slotly/internal/models"
 	"github.com/insignificantGuy/Slotly/internal/repository"
@@ -25,13 +26,17 @@ func (r *companyRoleRepository) CreateCompanyRole(ctx context.Context, companyRo
 }
 
 func (r *companyRoleRepository) GetCompanyRole(ctx context.Context, id string) (*models.CompanyRoleMapping, error) {
-	return r.BaseRepository.Get(ctx, id)
+	var entity models.CompanyRoleMapping
+	err := r.db.WithContext(ctx).First(&entity, "company_id = ?", id).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, repository.ErrNotFound
+		}
+		return nil, err
+	}
+	return &entity, nil
 }
 
 func (r *companyRoleRepository) UpdateCompanyRole(ctx context.Context, companyRole *models.CompanyRoleMapping) error {
 	return r.BaseRepository.Update(ctx, companyRole)
-}
-
-func (r *companyRoleRepository) DeleteCompanyRole(ctx context.Context, id string) error {
-	return r.BaseRepository.Delete(ctx, id)
 }

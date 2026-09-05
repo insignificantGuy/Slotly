@@ -12,5 +12,4 @@ type CompanyRepository interface {
 	RegisterCompany(ctx context.Context, company *model.Company) error
 	FetchCompanyByID(ctx context.Context, id string) (*model.Company, error)
 	UpdateCompany(ctx context.Context, company *model.Company) error
-	DeleteCompany(ctx context.Context, id string) error
 }
