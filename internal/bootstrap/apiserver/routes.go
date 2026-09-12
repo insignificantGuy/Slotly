@@ -13,6 +13,7 @@ func SetupRoutes(router *gin.Engine) {
 	SetupUserRoleRoutes(router)
 	SetupRoleRoutes(router)
 	SetupSlotRoutes(router)
+	SetupBookingRoutes(router)
 }
 
 func SetupHealthRoutes(router *gin.Engine) {
@@ -89,4 +90,15 @@ func SetupSlotRoutes(router *gin.Engine) {
 	slotGroup.PUT("/slot/:id", slotController.UpdateSlot)
 	slotGroup.DELETE("/slot/:id", slotController.DeleteSlot)
 	slotGroup.GET("/listing/:id/slots", slotController.GetSlotsByListingID)
+}
+
+func SetupBookingRoutes(router *gin.Engine) {
+	bookingGroup := router.Group("/v1")
+	bookingController := controller.BookingController
+	bookingGroup.POST("/bookings", bookingController.CreateBooking)
+	bookingGroup.GET("/bookings/user/:user_id", bookingController.GetBookingsByUserID)
+	bookingGroup.GET("/bookings/listing/:listing_id", bookingController.GetBookingsByListingID)
+	bookingGroup.GET("/booking/:id", bookingController.GetBooking)
+	bookingGroup.PUT("/booking/:id", bookingController.UpdateBooking)
+	bookingGroup.DELETE("/booking/:id", bookingController.CancelBooking)
 }

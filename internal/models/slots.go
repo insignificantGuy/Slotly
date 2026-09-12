@@ -8,7 +8,7 @@ import (
 
 type Slot struct {
 	gorm.Model
-	ListingID Listing   `foreignKey:"ListingID" gorm:"not null"`
+	ListingID string    `gorm:"type:char(36);not null;index"`
 	Date      time.Time `gorm:"not null"`
 	StartTime time.Time `gorm:"not null"`
 	EndTime   time.Time `gorm:"not null"`

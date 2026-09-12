@@ -2,6 +2,8 @@ package slots
 
 import (
 	"context"
+	"errors"
+	"time"
 
 	"github.com/insignificantGuy/Slotly/internal/models"
 	"github.com/insignificantGuy/Slotly/internal/repository"
@@ -24,16 +26,40 @@ func (r *slotsRepository) CreateSlot(ctx context.Context, slot *models.Slot) err
 	return r.BaseRepository.Create(ctx, slot)
 }
 
-func (r *slotsRepository) GetSlot(ctx context.Context, id string) (*models.Slot, error) {
-	return r.BaseRepository.Get(ctx, id)
+func (r *slotsRepository) GetSlotByID(ctx context.Context, id uint) (*models.Slot, error) {
+	var slot models.Slot
+	err := r.db.WithContext(ctx).First(&slot, id).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, repository.ErrNotFound
+		}
+		return nil, err
+	}
+	return &slot, nil
+}
+
+func (r *slotsRepository) GetCurrentDateSlot(ctx context.Context, listingID string) (*[]models.Slot, error) {
+	var slots []models.Slot
+	today := time.Now().UTC().Format("2006-01-02")
+	if err := r.db.WithContext(ctx).Where("listing_id = ? AND DATE(date) = ?", listingID, today).Find(&slots).Error; err != nil {
+		return nil, err
+	}
+	return &slots, nil
 }
 
 func (r *slotsRepository) UpdateSlot(ctx context.Context, slot *models.Slot) error {
 	return r.BaseRepository.Update(ctx, slot)
 }
 
-func (r *slotsRepository) DeleteSlot(ctx context.Context, id string) error {
-	return r.BaseRepository.Delete(ctx, id)
+func (r *slotsRepository) DeleteSlot(ctx context.Context, id uint) error {
+	result := r.db.WithContext(ctx).Delete(&models.Slot{}, id)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return repository.ErrNotFound
+	}
+	return nil
 }
 
 func (r *slotsRepository) GetSlotsByListingID(ctx context.Context, listingID string) (*[]models.Slot, error) {

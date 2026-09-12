@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/insignificantGuy/Slotly/internal/api/booking"
 	"github.com/insignificantGuy/Slotly/internal/api/company"
 	companyrole "github.com/insignificantGuy/Slotly/internal/api/company_role"
 	"github.com/insignificantGuy/Slotly/internal/api/listing"
@@ -8,6 +9,7 @@ import (
 	"github.com/insignificantGuy/Slotly/internal/api/slots"
 	"github.com/insignificantGuy/Slotly/internal/api/user"
 	userrole "github.com/insignificantGuy/Slotly/internal/api/user_role"
+	bookingRepo "github.com/insignificantGuy/Slotly/internal/repository/booking"
 	companyRepo "github.com/insignificantGuy/Slotly/internal/repository/company"
 	companyroleRepo "github.com/insignificantGuy/Slotly/internal/repository/company_role"
 	listingRepo "github.com/insignificantGuy/Slotly/internal/repository/listing"
@@ -26,6 +28,7 @@ type Service struct {
 	UserRoleService    *userrole.UserRoleService
 	RoleService        *roles.RoleService
 	SlotService        *slots.SlotService
+	BookingService     *booking.BookingService
 }
 
 func NewService(db *gorm.DB) (*Service, error) {
@@ -48,7 +51,17 @@ func NewService(db *gorm.DB) (*Service, error) {
 			companyRepo.NewCompanyRepository(db),
 		),
 		UserRoleService: userrole.NewUserRoleService(userRoles, users),
-		RoleService:     roles.NewRoleService(rolesRepo.NewRolesRepository(db)),
-		SlotService:     slots.NewSlotService(slotsRepo.NewSlotsRepository(db)),
+		RoleService: roles.NewRoleService(rolesRepo.NewRolesRepository(db)),
+		SlotService: slots.NewSlotService(
+			slotsRepo.NewSlotsRepository(db),
+			listingRepo.NewListingRepository(db),
+			companyroleRepo.NewCompanyRoleRepository(db),
+		),
+		BookingService: booking.NewBookingService(
+			bookingRepo.NewBookingRepository(db),
+			users,
+			listingRepo.NewListingRepository(db),
+			companyroleRepo.NewCompanyRoleRepository(db),
+		),
 	}, nil
 }

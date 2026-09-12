@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/insignificantGuy/Slotly/internal/api/booking"
 	"github.com/insignificantGuy/Slotly/internal/api/company"
 	companyrole "github.com/insignificantGuy/Slotly/internal/api/company_role"
 	"github.com/insignificantGuy/Slotly/internal/api/listing"
@@ -18,6 +19,7 @@ type Controller struct {
 	UserRoleController    *userrole.UserRoleController
 	RoleController        *roles.RoleController
 	SlotController        *slots.SlotController
+	BookingController     *booking.BookingController
 }
 
 func NewController(svc *Service) *Controller {
@@ -29,5 +31,6 @@ func NewController(svc *Service) *Controller {
 		UserRoleController:    userrole.NewUserRoleController(svc.UserRoleService),
 		RoleController:        roles.NewRoleController(svc.RoleService),
 		SlotController:        slots.NewSlotController(svc.SlotService),
+		BookingController:     booking.NewBookingController(svc.BookingService),
 	}
 }
