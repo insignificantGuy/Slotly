@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/insignificantGuy/Slotly/internal/auth"
 	model "github.com/insignificantGuy/Slotly/internal/models"
 	"github.com/insignificantGuy/Slotly/internal/repository"
 )
@@ -18,6 +19,10 @@ func NewListingController(listingsService *ListingService) *ListingController {
 }
 
 func (lc *ListingController) CreateListing(c *gin.Context) {
+	userID, ok := auth.MustUserID(c)
+	if !ok {
+		return
+	}
 	var req CreateListingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
@@ -31,7 +36,7 @@ func (lc *ListingController) CreateListing(c *gin.Context) {
 		CompanyID:   req.CompanyID,
 		Price:       req.Price,
 	}
-	if err := lc.listingsService.CreateListing(c.Request.Context(), &listing, req.UserID); err != nil {
+	if err := lc.listingsService.CreateListing(c.Request.Context(), &listing, userID); err != nil {
 		lc.writeError(c, err, "company not found")
 		return
 	}
@@ -48,12 +53,16 @@ func (lc *ListingController) GetListing(c *gin.Context) {
 }
 
 func (lc *ListingController) UpdateListing(c *gin.Context) {
+	userID, ok := auth.MustUserID(c)
+	if !ok {
+		return
+	}
 	var req UpdateListingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
-	if err := lc.listingsService.UpdateListing(c.Request.Context(), c.Param("id"), &req); err != nil {
+	if err := lc.listingsService.UpdateListing(c.Request.Context(), c.Param("id"), userID, &req); err != nil {
 		lc.writeError(c, err, "listing not found")
 		return
 	}
@@ -61,12 +70,11 @@ func (lc *ListingController) UpdateListing(c *gin.Context) {
 }
 
 func (lc *ListingController) DeleteListing(c *gin.Context) {
-	var req DeleteListingRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+	userID, ok := auth.MustUserID(c)
+	if !ok {
 		return
 	}
-	if err := lc.listingsService.DeleteListing(c.Request.Context(), c.Param("id"), req.UserID); err != nil {
+	if err := lc.listingsService.DeleteListing(c.Request.Context(), c.Param("id"), userID); err != nil {
 		lc.writeError(c, err, "listing not found")
 		return
 	}

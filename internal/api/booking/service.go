@@ -46,8 +46,8 @@ func NewBookingService(
 	}
 }
 
-func (s *BookingService) CreateBooking(ctx context.Context, req *CreateBookingRequest) (*model.Booking, error) {
-	if _, err := s.userRepository.GetUser(ctx, req.UserID); err != nil {
+func (s *BookingService) CreateBooking(ctx context.Context, userID string, req *CreateBookingRequest) (*model.Booking, error) {
+	if _, err := s.userRepository.GetUser(ctx, userID); err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
 			return nil, ErrUserNotFound
 		}
@@ -58,7 +58,7 @@ func (s *BookingService) CreateBooking(ctx context.Context, req *CreateBookingRe
 	}
 
 	booking := &model.Booking{
-		UserID:    req.UserID,
+		UserID:    userID,
 		SlotID:    req.SlotID,
 		ListingID: req.ListingID,
 		Status:    model.BookingStatusConfirmed,
@@ -69,11 +69,18 @@ func (s *BookingService) CreateBooking(ctx context.Context, req *CreateBookingRe
 	return booking, nil
 }
 
-func (s *BookingService) GetBooking(ctx context.Context, id uint) (*model.Booking, error) {
+func (s *BookingService) GetBooking(ctx context.Context, id uint, userID string) (*model.Booking, error) {
 	if id == 0 {
 		return nil, errors.New("booking id is required")
 	}
-	return s.bookingRepository.GetBooking(ctx, id)
+	booking, err := s.bookingRepository.GetBooking(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.assertCanModifyBooking(ctx, userID, booking); err != nil {
+		return nil, err
+	}
+	return booking, nil
 }
 
 func (s *BookingService) GetBookingsByUserID(ctx context.Context, userID string) ([]model.Booking, error) {
@@ -103,12 +110,12 @@ func (s *BookingService) GetBookingsByListingID(ctx context.Context, listingID, 
 	return s.bookingRepository.GetBookingsByListingID(ctx, listingID)
 }
 
-func (s *BookingService) UpdateBooking(ctx context.Context, id uint, req *UpdateBookingRequest) error {
+func (s *BookingService) UpdateBooking(ctx context.Context, id uint, userID string, req *UpdateBookingRequest) error {
 	existing, err := s.bookingRepository.GetBooking(ctx, id)
 	if err != nil {
 		return err
 	}
-	if err := s.assertCanModifyBooking(ctx, req.UserID, existing); err != nil {
+	if err := s.assertCanModifyBooking(ctx, userID, existing); err != nil {
 		return err
 	}
 

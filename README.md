@@ -1,753 +1,312 @@
 # Slotly
 
-> **A production-style, multi-tenant appointment and booking SaaS backend built for service-based businesses.**
+A **Go** REST API for service businesses (salons, clinics, coaches) to publish listings, open time slots, and take bookings.
 
-Slotly is a REST API platform that enables businesses such as **clinics, therapists, consultants, coaches, salons, and service providers** to manage their organization, staff, services, availability, and customer appointments.
-
-The project is designed to demonstrate how a real-world SaaS backend can be structured with **multi-tenancy, authentication, role-based access control, scheduling conflict prevention, database transactions, rate limiting, and production-ready API design**.
-
-## 🚀 Live Demo
-
-| Resource              | URL           |
-| --------------------- | ------------- |
-| Live API              | `Coming Soon` |
-| Swagger Documentation | `Coming Soon` |
-| API Health Check      | `Coming Soon` |
+One user account can browse any company’s catalog. **Writes** (listings, slots, company settings) require a membership on that company. Customers book slots without becoming staff.
 
 ---
 
-# ✨ Features
+## What works today
 
-## Authentication & Security
-
-* JWT-based authentication
-* Access and refresh tokens
-* Secure password hashing
-* Role-Based Access Control (RBAC)
-* Rate limiting on public endpoints
-* Protected organization resources
-* Input validation
-* Structured error responses
-* Environment-based configuration
-
-## Multi-Tenant Architecture
-
-Each business operates as an isolated organization.
-
-For example:
-
-* One clinic cannot access another clinic's appointments
-* One salon cannot modify another salon's services
-* Staff members can only access resources belonging to their organization
-
-Tenant isolation is enforced at the application and database query layers.
-
-## Appointment Management
-
-* Create appointments
-* Update appointments
-* Cancel appointments
-* Reschedule appointments
-* Appointment status management
-* Prevent double booking
-* Validate staff availability
-* Validate service duration
-* Customer booking history
-
-## Staff Management
-
-* Invite or create staff members
-* Assign roles
-* Configure staff availability
-* Assign services to staff
-* Manage schedules
-
-## Service Management
-
-Businesses can:
-
-* Create services
-* Update services
-* Define service duration
-* Define pricing
-* Assign services to staff
-* Enable or disable services
-
-## Customer Management
-
-* Create customers
-* View appointment history
-* Search customers
-* Manage customer profiles
+* Register / login with **bcrypt** passwords and **JWT** access tokens (15 minutes)
+* **Refresh tokens** (7 days), stored hashed; logout and logout-all
+* Identity comes from `Authorization: Bearer <access_token>` (not `user_id` in JSON)
+* Seeded roles: `super_admin`, `org_admin`, `staff`, `customer` (no public role CRUD)
+* Register assigns **customer**; create company assigns **org_admin** membership and keeps customer
+* Listing and slot **writes** require org_admin or staff on that company
+* Slot overlap checks on create/update
+* Bookings: create, list mine, list by listing (staff), reschedule, cancel — with a row lock so two people cannot book the same slot
+* Goose migrations on **MySQL**
+* Public catalog: get company, listings, and slots without a token
 
 ---
 
-# 🏗 Architecture
-
-```mermaid
-flowchart TB
-
-    Client[Web / Mobile Client]
-
-    Client --> API[REST API]
-
-    API --> Middleware[Middleware Layer]
-
-    Middleware --> Auth[Authentication]
-    Middleware --> RateLimit[Rate Limiting]
-    Middleware --> Validation[Request Validation]
-    Middleware --> RBAC[Role Authorization]
-
-    Auth --> Controllers
-    RateLimit --> Controllers
-    Validation --> Controllers
-    RBAC --> Controllers
-
-    Controllers --> Services[Service Layer]
-
-    Services --> UserService[User Service]
-    Services --> OrgService[Organization Service]
-    Services --> BookingService[Booking Service]
-    Services --> AvailabilityService[Availability Service]
-
-    UserService --> Repository[Repository Layer]
-    OrgService --> Repository
-    BookingService --> Repository
-    AvailabilityService --> Repository
-
-    Repository --> DB[(PostgreSQL)]
-
-    Services --> Cache[(Redis)]
-    Services --> Jobs[Background Jobs]
-
-    Jobs --> Notifications[Email Notifications]
-```
-
-## Architectural Principles
-
-The application follows a layered architecture:
+## Architecture
 
 ```text
-Routes
-  ↓
-Middleware
-  ↓
-Controllers
-  ↓
-Services
-  ↓
-Repositories
-  ↓
-Database
+HTTP (Gin)
+  → routes (public vs JWT middleware)
+    → controllers
+      → services
+        → repositories (GORM)
+          → MySQL
 ```
 
-### Responsibilities
-
-**Routes**
-
-* Define API endpoints
-* Attach middleware
-* Map requests to controllers
-
-**Middleware**
-
-* Authentication
-* Authorization
-* Rate limiting
-* Validation
-* Error handling
-
-**Controllers**
-
-* Handle HTTP requests and responses
-* Keep business logic minimal
-
-**Services**
-
-* Contain core business logic
-* Enforce scheduling rules
-* Coordinate database transactions
-
-**Repositories**
-
-* Database access
-* Query abstraction
+| Package | Role |
+| ------- | ---- |
+| `internal/bootstrap/apiserver` | HTTP server, route groups |
+| `internal/auth` | Password hashing, JWT, `RequireAuth` |
+| `internal/api/*` | Controllers and services |
+| `internal/repository/*` | Data access |
+| `internal/models` | GORM models |
+| `migrations/` | Goose SQL |
 
 ---
 
-# 👥 Roles & Permissions
+## Roles
 
-Slotly uses Role-Based Access Control.
+Roles live in `roles` (seeded, not an API). Assignments are separate tables.
 
-| Role          | Description                                    |
-| ------------- | ---------------------------------------------- |
-| `SUPER_ADMIN` | Platform-level administrator                   |
-| `ORG_ADMIN`   | Manages an organization                        |
-| `STAFF`       | Manages assigned appointments and availability |
-| `CUSTOMER`    | Books and manages appointments                 |
+| Role | Where it lives | Meaning |
+| ---- | -------------- | ------- |
+| `customer` (id 4) | `user_role_mappings` | Default on register; can book |
+| `super_admin` (id 1) | `user_role_mappings` | Platform (not wired in handlers yet) |
+| `org_admin` (id 2) | `company_role_mappings` | Owns/manages a company |
+| `staff` (id 3) | `company_role_mappings` | Can write listings/slots for that company |
 
-## Example Permission Matrix
-
-| Action                     | Super Admin | Org Admin | Staff | Customer |
-| -------------------------- | :---------: | :-------: | :---: | :------: |
-| Manage organizations       |      ✅      |     ❌     |   ❌   |     ❌    |
-| Manage organization staff  |      ✅      |     ✅     |   ❌   |     ❌    |
-| Create services            |      ❌      |     ✅     |   ❌   |     ❌    |
-| Manage own availability    |      ❌      |     ❌     |   ✅   |     ❌    |
-| View assigned appointments |      ❌      |     ✅     |   ✅   |     ❌    |
-| Book appointment           |      ❌      |     ❌     |   ❌   |     ✅    |
-| Cancel own appointment     |      ❌      |     ❌     |   ❌   |     ✅    |
+A user can be a **customer globally** and **org_admin of company A** at the same time. Staff of B cannot edit listings of A.
 
 ---
 
-# 🗂 Project Structure
-
-```text
-src/
-├── config/
-│   ├── database
-│   ├── redis
-│   └── environment
-│
-├── modules/
-│   ├── auth/
-│   ├── users/
-│   ├── organizations/
-│   ├── staff/
-│   ├── services/
-│   ├── availability/
-│   ├── appointments/
-│   └── customers/
-│
-├── middleware/
-│   ├── authentication
-│   ├── authorization
-│   ├── validation
-│   ├── rate-limit
-│   └── error-handler
-│
-├── shared/
-│   ├── errors
-│   ├── utils
-│   └── constants
-│
-├── routes/
-├── jobs/
-└── app
-```
-
----
-
-# 🗄 Database Design
-
-The core entities are:
+## Data model
 
 ```mermaid
 erDiagram
-
-    USER ||--o{ ORGANIZATION_MEMBER : belongs_to
-    ORGANIZATION ||--o{ ORGANIZATION_MEMBER : has
-
-    ORGANIZATION ||--o{ SERVICE : offers
-    ORGANIZATION ||--o{ STAFF : employs
-    ORGANIZATION ||--o{ CUSTOMER : manages
-
-    STAFF ||--o{ STAFF_AVAILABILITY : has
-    STAFF ||--o{ STAFF_SERVICE : provides
-
-    SERVICE ||--o{ STAFF_SERVICE : assigned_to
-
-    CUSTOMER ||--o{ APPOINTMENT : books
-    STAFF ||--o{ APPOINTMENT : handles
-    SERVICE ||--o{ APPOINTMENT : scheduled_for
+    USER ||--o{ USER_ROLE_MAPPING : has
+    ROLE ||--o{ USER_ROLE_MAPPING : grants
+    USER ||--o{ COMPANY_ROLE_MAPPING : member_of
+    COMPANY ||--o{ COMPANY_ROLE_MAPPING : has
+    ROLE ||--o{ COMPANY_ROLE_MAPPING : grants
+    COMPANY ||--o{ LISTING : owns
+    LISTING ||--o{ SLOT : offers
+    USER ||--o{ BOOKING : places
+    SLOT ||--o{ BOOKING : reserved_by
+    USER ||--o{ REFRESH_TOKEN : sessions
 
     USER {
-        uuid id PK
+        char user_id PK
         string email
-        string password_hash
-        string role
+        string password
+        string full_name
     }
-
-    ORGANIZATION {
-        uuid id PK
+    COMPANY {
+        char company_id PK
         string name
-        string timezone
+        string email
     }
-
-    SERVICE {
-        uuid id PK
-        uuid organization_id FK
-        string name
-        integer duration_minutes
+    LISTING {
+        char listing_id PK
+        char company_id FK
+        string title
         decimal price
     }
-
-    STAFF {
-        uuid id PK
-        uuid organization_id FK
-        uuid user_id FK
+    SLOT {
+        uint id PK
+        char listing_id FK
+        datetime start_time
+        datetime end_time
+        bool is_booked
     }
-
-    CUSTOMER {
-        uuid id PK
-        uuid organization_id FK
-        string name
-        string email
-    }
-
-    APPOINTMENT {
-        uuid id PK
-        uuid organization_id FK
-        uuid customer_id FK
-        uuid staff_id FK
-        uuid service_id FK
-        timestamp start_time
-        timestamp end_time
+    BOOKING {
+        uint id PK
+        char user_id FK
+        uint slot_id FK
+        char listing_id FK
         string status
     }
 ```
 
 ---
 
-# 🔒 Multi-Tenant Isolation
+## Auth
 
-Every tenant-specific resource is associated with an `organization_id`.
+1. `POST /v1/users` or `POST /v1/auth/login` returns `access_token` and `refresh_token`.
+2. Send `Authorization: Bearer <access_token>` on protected routes.
+3. `POST /v1/auth/refresh` with `{ "refresh_token": "..." }` rotates the refresh token.
+4. `POST /v1/auth/logout` revokes that refresh token. `POST /v1/auth/logout-all` (authenticated) revokes all sessions.
 
-For example:
+Set `JWT_SECRET` in production. If unset, a **dev-only** secret is used.
 
-```text
-Appointment
-    ↓
-organization_id
-```
-
-Every protected query validates the organization context.
-
-Example:
-
-```text
-GET /appointments/:id
-
-WHERE
-    appointment.id = :appointmentId
-    AND appointment.organization_id = :currentOrganizationId
-```
-
-This prevents users from accessing resources belonging to another organization.
+Passwords created before hashing was added will not log in; those users must register again.
 
 ---
 
-# 📅 Booking Flow
+## Booking flow
 
 ```mermaid
 sequenceDiagram
-
-    Customer->>API: Create Appointment Request
-    API->>Auth: Validate JWT
-    Auth-->>API: Authenticated
-
-    API->>Validation: Validate Request
-    Validation-->>API: Valid
-
-    API->>BookingService: Check Availability
-
-    BookingService->>Database: Check Staff Schedule
-    Database-->>BookingService: Available
-
-    BookingService->>Database: Check Existing Appointments
-    Database-->>BookingService: No Conflict
-
-    BookingService->>Database: Create Appointment
-
-    Database-->>BookingService: Appointment Created
-
-    BookingService-->>API: Success
-    API-->>Customer: 201 Created
+    Customer->>API: POST /v1/bookings (JWT)
+    API->>Auth: Validate access token
+    Auth-->>API: user_id
+    API->>DB: Lock slot row
+    alt slot already booked
+        DB-->>API: conflict
+        API-->>Customer: 409
+    else free
+        API->>DB: Insert booking, set is_booked
+        API-->>Customer: 200
+    end
 ```
+
+Creating **slots** (staff) also rejects overlapping times on the same listing.
 
 ---
 
-# 🛡 Preventing Double Bookings
+## API
 
-One of the important business problems handled by Slotly is preventing conflicting appointments.
+Base URL: `http://localhost:8080` (or `PORT`). Prefix `/v1`.
 
-Before creating an appointment, the system checks:
-
-1. Whether the staff member exists
-2. Whether the staff member belongs to the organization
-3. Whether the requested service exists
-4. Whether the staff member provides the requested service
-5. Whether the requested time falls within staff availability
-6. Whether another appointment already overlaps with the requested time
-
-An appointment is rejected when an overlap exists.
-
-Example:
+### Public
 
 ```text
-Existing Appointment
-10:00 ───────── 11:00
-
-Requested Appointment
-       10:30 ───────── 11:30
-
-Result: Conflict ❌
+GET    /health
+GET    /live
+POST   /v1/users
+POST   /v1/auth/login
+POST   /v1/auth/refresh
+POST   /v1/auth/logout
+GET    /v1/company/:id
+GET    /v1/listing/:id
+GET    /v1/listing/type/:type
+GET    /v1/listing/company/:company_id
+GET    /v1/listings/price/:price
+GET    /v1/slot/:id
+GET    /v1/listing/:id/slots
 ```
 
----
-
-# 📡 API Endpoints
-
-## Authentication
+### Authenticated
 
 ```text
-POST   /api/v1/auth/register
-POST   /api/v1/auth/login
-POST   /api/v1/auth/refresh
-POST   /api/v1/auth/logout
+POST   /v1/auth/logout-all
+GET    /v1/me
+GET    /v1/user/:id          # own profile only
+PUT    /v1/user/:id
+DELETE /v1/user/:id
+GET    /v1/user-role         # own global role mapping
+
+POST   /v1/companies
+PUT    /v1/company/:id       # membership required
+DELETE /v1/company/:id
+
+POST   /v1/listings
+PUT    /v1/listing/:id
+DELETE /v1/listing/:id
+
+POST   /v1/slots
+PUT    /v1/slot/:id
+DELETE /v1/slot/:id
+
+POST   /v1/bookings
+GET    /v1/bookings
+GET    /v1/bookings/listing/:listing_id
+GET    /v1/booking/:id
+PUT    /v1/booking/:id       # reschedule or status=cancelled
+DELETE /v1/booking/:id
 ```
 
-## Organizations
-
-```text
-POST   /api/v1/organizations
-GET    /api/v1/organizations/:id
-PATCH  /api/v1/organizations/:id
-```
-
-## Staff
-
-```text
-POST   /api/v1/staff
-GET    /api/v1/staff
-GET    /api/v1/staff/:id
-PATCH  /api/v1/staff/:id
-DELETE /api/v1/staff/:id
-```
-
-## Services
-
-```text
-POST   /api/v1/services
-GET    /api/v1/services
-GET    /api/v1/services/:id
-PATCH  /api/v1/services/:id
-DELETE /api/v1/services/:id
-```
-
-## Availability
-
-```text
-POST   /api/v1/staff/:staffId/availability
-GET    /api/v1/staff/:staffId/availability
-PATCH  /api/v1/availability/:id
-DELETE /api/v1/availability/:id
-```
-
-## Appointments
-
-```text
-POST   /api/v1/appointments
-GET    /api/v1/appointments
-GET    /api/v1/appointments/:id
-PATCH  /api/v1/appointments/:id
-DELETE /api/v1/appointments/:id
-
-POST   /api/v1/appointments/:id/cancel
-POST   /api/v1/appointments/:id/reschedule
-```
-
----
-
-# 🧪 Example API Request
-
-### Create Appointment
+### Example: register
 
 ```http
-POST /api/v1/appointments
+POST /v1/users
+Content-Type: application/json
+```
+
+```json
+{
+  "first_name": "Ada",
+  "last_name": "Lovelace",
+  "email": "ada@example.com",
+  "phone_number": "5550001111",
+  "password": "a-long-password"
+}
+```
+
+### Example: book a slot
+
+```http
+POST /v1/bookings
 Authorization: Bearer <access_token>
 Content-Type: application/json
 ```
 
 ```json
 {
-  "customerId": "customer_uuid",
-  "staffId": "staff_uuid",
-  "serviceId": "service_uuid",
-  "startTime": "2026-08-25T10:00:00Z"
+  "listing_id": "listing-uuid",
+  "slot_id": 12
 }
 ```
 
-### Successful Response
-
-```json
-{
-  "success": true,
-  "message": "Appointment created successfully",
-  "data": {
-    "id": "appointment_uuid",
-    "status": "CONFIRMED",
-    "startTime": "2026-08-25T10:00:00Z",
-    "endTime": "2026-08-25T11:00:00Z"
-  }
-}
-```
+Identity is **not** sent in the body.
 
 ---
 
-# ❌ Error Handling
+## Tech stack
 
-All errors follow a consistent structure.
-
-```json
-{
-  "success": false,
-  "error": {
-    "code": "APPOINTMENT_CONFLICT",
-    "message": "The selected time slot is no longer available"
-  }
-}
-```
-
-Common error codes:
-
-```text
-VALIDATION_ERROR
-UNAUTHORIZED
-FORBIDDEN
-RESOURCE_NOT_FOUND
-APPOINTMENT_CONFLICT
-RATE_LIMIT_EXCEEDED
-INTERNAL_SERVER_ERROR
-```
+| Layer | Technology |
+| ----- | ---------- |
+| Language | Go |
+| HTTP | Gin |
+| Database | MySQL |
+| ORM | GORM |
+| Migrations | Goose |
+| Auth | bcrypt + JWT (`github.com/golang-jwt/jwt/v5`) |
 
 ---
 
-# ⚡ Rate Limiting
+## Getting started
 
-Public endpoints are protected against abuse.
+### Prerequisites
 
-Examples include:
+* Go 1.22+ (module is `go 1.26.6`)
+* MySQL 8 with a database named `slotly` (or whatever your DSN uses)
+* [Goose](https://github.com/pressly/goose)
 
-```text
-POST /auth/login
-POST /auth/register
-POST /appointments
-```
-
-Rate limits can be configured using environment variables.
-
-Example:
-
-```text
-RATE_LIMIT_WINDOW_MS=60000
-RATE_LIMIT_MAX_REQUESTS=100
-```
-
----
-
-# 🧰 Tech Stack
-
-The project can be implemented using:
-
-| Layer             | Technology             |
-| ----------------- | ---------------------- |
-| Runtime           | Node.js                |
-| Framework         | Express.js / Fastify   |
-| Language          | TypeScript             |
-| Database          | PostgreSQL             |
-| ORM               | Prisma / Drizzle       |
-| Authentication    | JWT                    |
-| Validation        | Zod                    |
-| API Documentation | Swagger / OpenAPI      |
-| Cache             | Redis                  |
-| Containerization  | Docker                 |
-| Deployment        | Render / Railway / AWS |
-
----
-
-# 🚀 Getting Started
-
-## Prerequisites
-
-Make sure you have installed:
-
-* Node.js 20+
-* PostgreSQL
-* Redis
-* Docker (optional)
-
-## Clone the Repository
+### Configure
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/slotly-backend.git
-cd slotly-backend
+export DATABASE_DSN='user:pass@tcp(127.0.0.1:3306)/slotly?charset=utf8mb4&parseTime=True&loc=Local'
+export JWT_SECRET='a-long-random-secret'
+export PORT=8080
+export GOOSE_DRIVER=mysql
+export GOOSE_DBSTRING='user:pass@tcp(127.0.0.1:3306)/slotly'
+export GOOSE_MIGRATION_DIR=migrations
 ```
 
-## Install Dependencies
+If `DATABASE_DSN` is unset, the server uses `root@tcp(127.0.0.1:3306)/slotly?charset=utf8mb4&parseTime=True&loc=Local`.
+
+### Migrate and run
 
 ```bash
-npm install
+goose up
+go run .
 ```
 
-## Configure Environment Variables
-
-Create a `.env` file:
-
-```env
-PORT=3000
-NODE_ENV=development
-
-DATABASE_URL=postgresql://user:password@localhost:5432/slotly
-
-JWT_ACCESS_SECRET=your_access_secret
-JWT_REFRESH_SECRET=your_refresh_secret
-
-ACCESS_TOKEN_EXPIRY=15m
-REFRESH_TOKEN_EXPIRY=7d
-
-REDIS_URL=redis://localhost:6379
-
-RATE_LIMIT_WINDOW_MS=60000
-RATE_LIMIT_MAX_REQUESTS=100
-```
-
-## Run Database Migrations
-
-```bash
-npm run migration:run
-```
-
-## Start Development Server
-
-```bash
-npm run dev
-```
-
-The API should now be available at:
-
-```text
-http://localhost:3000
-```
-
-Swagger documentation:
-
-```text
-http://localhost:3000/api-docs
-```
+Health: `GET http://localhost:8080/health`
 
 ---
 
-# 🐳 Running with Docker
+## Roadmap
 
-```bash
-docker compose up --build
-```
+### Done
 
-This starts:
+- [x] Layered Go API (controller / service / repository)
+- [x] MySQL + Goose
+- [x] JWT access + hashed refresh tokens
+- [x] Password hashing
+- [x] Company, listing, slot, booking
+- [x] Membership-based listing/slot writes
+- [x] Double-book lock on slot booking
+- [x] Private seeded roles
 
-* API
-* PostgreSQL
-* Redis
+### Next
 
----
+- [ ] Staff invite (membership without creating a company)
+- [ ] Transactions on user/company create (user + role in one commit)
+- [ ] Lookup roles by name instead of hardcoded ids
+- [ ] Super-admin APIs
+- [ ] Tests (auth, overlap, double-book)
+- [ ] Rate limiting, CORS, structured error codes
+- [ ] OpenAPI / Swagger
+- [ ] Docker, CI, graceful shutdown, DB pool settings
+- [ ] Pagination on list endpoints
 
-# 🧪 Testing
+### Later
 
-Run the test suite:
-
-```bash
-npm test
-```
-
-Run tests with coverage:
-
-```bash
-npm run test:coverage
-```
-
-The test suite includes:
-
-* Unit tests
-* Service-layer tests
-* Integration tests
-* Authentication tests
-* Authorization tests
-* Appointment conflict tests
+- [ ] Redis, email, audit logs
+- [ ] Payments, calendar sync, webhooks
 
 ---
 
-# 🔮 Roadmap
+## License
 
-## Phase 1 — Core Platform
-
-* [x] Project architecture
-* [ ] Authentication
-* [ ] JWT access and refresh tokens
-* [ ] Organization management
-* [ ] Role-based access control
-
-## Phase 2 — Booking System
-
-* [ ] Staff management
-* [ ] Service management
-* [ ] Customer management
-* [ ] Availability management
-* [ ] Appointment creation
-* [ ] Double-booking prevention
-* [ ] Rescheduling
-* [ ] Cancellation
-
-## Phase 3 — Production Features
-
-* [ ] Redis caching
-* [ ] Background jobs
-* [ ] Email notifications
-* [ ] Audit logs
-* [ ] Docker support
-* [ ] CI/CD pipeline
-
-## Phase 4 — Advanced Features
-
-* [ ] Calendar integrations
-* [ ] Google Calendar sync
-* [ ] Payment integration
-* [ ] Webhooks
-* [ ] Usage analytics
-* [ ] Subscription plans
-
----
-
-# 💡 What This Project Demonstrates
-
-Slotly is intentionally designed to demonstrate more than basic CRUD operations.
-
-It showcases experience with:
-
-* Designing RESTful APIs
-* Multi-tenant SaaS architecture
-* JWT authentication
-* Role-based authorization
-* Relational database design
-* Database migrations
-* Transaction management
-* Complex scheduling logic
-* Preventing race conditions and double bookings
-* Input validation
-* Structured error handling
-* API rate limiting
-* Swagger/OpenAPI documentation
-* Docker-based development
-* Production deployment
-
----
-
-# 📄 License
-
-This project is licensed under the MIT License.
-
----
-
-## Built to demonstrate production-oriented backend engineering.
-
-If you are looking for a backend developer to build a SaaS platform, booking system, internal tool, marketplace, or API-driven application, this project demonstrates the type of backend architecture and engineering practices I can deliver.
+MIT

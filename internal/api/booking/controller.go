@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/insignificantGuy/Slotly/internal/auth"
 	"github.com/insignificantGuy/Slotly/internal/repository"
 	bookingRepo "github.com/insignificantGuy/Slotly/internal/repository/booking"
 )
@@ -18,12 +19,16 @@ func NewBookingController(bookingService *BookingService) *BookingController {
 }
 
 func (bc *BookingController) CreateBooking(c *gin.Context) {
+	userID, ok := auth.MustUserID(c)
+	if !ok {
+		return
+	}
 	var req CreateBookingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
-	booking, err := bc.bookingService.CreateBooking(c.Request.Context(), &req)
+	booking, err := bc.bookingService.CreateBooking(c.Request.Context(), userID, &req)
 	if err != nil {
 		bc.writeError(c, err, "listing or slot not found")
 		return
@@ -32,11 +37,15 @@ func (bc *BookingController) CreateBooking(c *gin.Context) {
 }
 
 func (bc *BookingController) GetBooking(c *gin.Context) {
+	userID, ok := auth.MustUserID(c)
+	if !ok {
+		return
+	}
 	id, ok := parseID(c, "id")
 	if !ok {
 		return
 	}
-	booking, err := bc.bookingService.GetBooking(c.Request.Context(), id)
+	booking, err := bc.bookingService.GetBooking(c.Request.Context(), id, userID)
 	if err != nil {
 		bc.writeError(c, err, "booking not found")
 		return
@@ -44,8 +53,12 @@ func (bc *BookingController) GetBooking(c *gin.Context) {
 	c.JSON(200, booking)
 }
 
-func (bc *BookingController) GetBookingsByUserID(c *gin.Context) {
-	bookings, err := bc.bookingService.GetBookingsByUserID(c.Request.Context(), c.Param("user_id"))
+func (bc *BookingController) GetMyBookings(c *gin.Context) {
+	userID, ok := auth.MustUserID(c)
+	if !ok {
+		return
+	}
+	bookings, err := bc.bookingService.GetBookingsByUserID(c.Request.Context(), userID)
 	if err != nil {
 		bc.writeError(c, err, "user not found")
 		return
@@ -54,7 +67,10 @@ func (bc *BookingController) GetBookingsByUserID(c *gin.Context) {
 }
 
 func (bc *BookingController) GetBookingsByListingID(c *gin.Context) {
-	userID := c.Query("user_id")
+	userID, ok := auth.MustUserID(c)
+	if !ok {
+		return
+	}
 	bookings, err := bc.bookingService.GetBookingsByListingID(c.Request.Context(), c.Param("listing_id"), userID)
 	if err != nil {
 		bc.writeError(c, err, "listing not found")
@@ -64,6 +80,10 @@ func (bc *BookingController) GetBookingsByListingID(c *gin.Context) {
 }
 
 func (bc *BookingController) UpdateBooking(c *gin.Context) {
+	userID, ok := auth.MustUserID(c)
+	if !ok {
+		return
+	}
 	id, ok := parseID(c, "id")
 	if !ok {
 		return
@@ -73,7 +93,7 @@ func (bc *BookingController) UpdateBooking(c *gin.Context) {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
-	if err := bc.bookingService.UpdateBooking(c.Request.Context(), id, &req); err != nil {
+	if err := bc.bookingService.UpdateBooking(c.Request.Context(), id, userID, &req); err != nil {
 		bc.writeError(c, err, "booking not found")
 		return
 	}
@@ -81,16 +101,15 @@ func (bc *BookingController) UpdateBooking(c *gin.Context) {
 }
 
 func (bc *BookingController) CancelBooking(c *gin.Context) {
+	userID, ok := auth.MustUserID(c)
+	if !ok {
+		return
+	}
 	id, ok := parseID(c, "id")
 	if !ok {
 		return
 	}
-	var req DeleteBookingRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
-		return
-	}
-	if err := bc.bookingService.CancelBooking(c.Request.Context(), id, req.UserID); err != nil {
+	if err := bc.bookingService.CancelBooking(c.Request.Context(), id, userID); err != nil {
 		bc.writeError(c, err, "booking not found")
 		return
 	}

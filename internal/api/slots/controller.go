@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/insignificantGuy/Slotly/internal/auth"
 	model "github.com/insignificantGuy/Slotly/internal/models"
 	"github.com/insignificantGuy/Slotly/internal/repository"
 )
@@ -18,6 +19,10 @@ func NewSlotController(slotService *SlotService) *SlotController {
 }
 
 func (sc *SlotController) CreateSlot(c *gin.Context) {
+	userID, ok := auth.MustUserID(c)
+	if !ok {
+		return
+	}
 	var req CreateSlotRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
@@ -31,7 +36,7 @@ func (sc *SlotController) CreateSlot(c *gin.Context) {
 		Duration:  req.Duration,
 		IsBooked:  false,
 	}
-	if err := sc.slotService.CreateSlot(c.Request.Context(), slot, req.UserID); err != nil {
+	if err := sc.slotService.CreateSlot(c.Request.Context(), slot, userID); err != nil {
 		sc.writeError(c, err, "listing not found")
 		return
 	}
@@ -52,6 +57,10 @@ func (sc *SlotController) GetSlot(c *gin.Context) {
 }
 
 func (sc *SlotController) UpdateSlot(c *gin.Context) {
+	userID, ok := auth.MustUserID(c)
+	if !ok {
+		return
+	}
 	id, ok := parseID(c, "id")
 	if !ok {
 		return
@@ -61,7 +70,7 @@ func (sc *SlotController) UpdateSlot(c *gin.Context) {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
-	if err := sc.slotService.UpdateSlot(c.Request.Context(), id, &req); err != nil {
+	if err := sc.slotService.UpdateSlot(c.Request.Context(), id, userID, &req); err != nil {
 		sc.writeError(c, err, "slot not found")
 		return
 	}
@@ -69,16 +78,15 @@ func (sc *SlotController) UpdateSlot(c *gin.Context) {
 }
 
 func (sc *SlotController) DeleteSlot(c *gin.Context) {
+	userID, ok := auth.MustUserID(c)
+	if !ok {
+		return
+	}
 	id, ok := parseID(c, "id")
 	if !ok {
 		return
 	}
-	var req DeleteSlotRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
-		return
-	}
-	if err := sc.slotService.DeleteSlot(c.Request.Context(), id, req.UserID); err != nil {
+	if err := sc.slotService.DeleteSlot(c.Request.Context(), id, userID); err != nil {
 		sc.writeError(c, err, "slot not found")
 		return
 	}

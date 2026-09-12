@@ -1,19 +1,20 @@
 package api
 
 import (
+	authapi "github.com/insignificantGuy/Slotly/internal/api/auth"
 	"github.com/insignificantGuy/Slotly/internal/api/booking"
 	"github.com/insignificantGuy/Slotly/internal/api/company"
 	companyrole "github.com/insignificantGuy/Slotly/internal/api/company_role"
 	"github.com/insignificantGuy/Slotly/internal/api/listing"
-	"github.com/insignificantGuy/Slotly/internal/api/roles"
 	"github.com/insignificantGuy/Slotly/internal/api/slots"
 	"github.com/insignificantGuy/Slotly/internal/api/user"
 	userrole "github.com/insignificantGuy/Slotly/internal/api/user_role"
+	"github.com/insignificantGuy/Slotly/internal/auth"
 	bookingRepo "github.com/insignificantGuy/Slotly/internal/repository/booking"
 	companyRepo "github.com/insignificantGuy/Slotly/internal/repository/company"
 	companyroleRepo "github.com/insignificantGuy/Slotly/internal/repository/company_role"
 	listingRepo "github.com/insignificantGuy/Slotly/internal/repository/listing"
-	rolesRepo "github.com/insignificantGuy/Slotly/internal/repository/roles"
+	refreshRepo "github.com/insignificantGuy/Slotly/internal/repository/refresh_token"
 	slotsRepo "github.com/insignificantGuy/Slotly/internal/repository/slots"
 	userRepo "github.com/insignificantGuy/Slotly/internal/repository/user"
 	userroleRepo "github.com/insignificantGuy/Slotly/internal/repository/user_role"
@@ -21,21 +22,26 @@ import (
 )
 
 type Service struct {
+	AuthService        *authapi.AuthService
 	UserService        *user.UserService
 	CompanyService     *company.CompanyService
 	CompanyRoleService *companyrole.CompanyRoleService
 	ListingService     *listing.ListingService
 	UserRoleService    *userrole.UserRoleService
-	RoleService        *roles.RoleService
 	SlotService        *slots.SlotService
 	BookingService     *booking.BookingService
 }
 
-func NewService(db *gorm.DB) (*Service, error) {
+func NewService(db *gorm.DB, tokens *auth.Tokens) (*Service, error) {
 	users := userRepo.NewUserRepository(db)
 	userRoles := userroleRepo.NewUserRoleRepository(db)
 	return &Service{
-		UserService:    user.NewUserService(users, userRoles),
+		AuthService: authapi.NewAuthService(
+			users,
+			refreshRepo.NewRefreshTokenRepository(db),
+			tokens,
+		),
+		UserService: user.NewUserService(users, userRoles),
 		CompanyService: company.NewCompanyService(
 			companyRepo.NewCompanyRepository(db),
 			companyroleRepo.NewCompanyRoleRepository(db),
@@ -51,7 +57,6 @@ func NewService(db *gorm.DB) (*Service, error) {
 			companyRepo.NewCompanyRepository(db),
 		),
 		UserRoleService: userrole.NewUserRoleService(userRoles, users),
-		RoleService: roles.NewRoleService(rolesRepo.NewRolesRepository(db)),
 		SlotService: slots.NewSlotService(
 			slotsRepo.NewSlotsRepository(db),
 			listingRepo.NewListingRepository(db),

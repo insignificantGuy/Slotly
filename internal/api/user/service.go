@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/insignificantGuy/Slotly/internal/auth"
 	model "github.com/insignificantGuy/Slotly/internal/models"
 	"github.com/insignificantGuy/Slotly/internal/repository"
 	"github.com/insignificantGuy/Slotly/internal/repository/user"
@@ -24,29 +25,38 @@ func NewUserService(userRepository user.UserRepository, userRoleRepository userr
 	return &UserService{userRepository: userRepository, userRoleRepository: userRoleRepository}
 }
 
-func (s *UserService) CreateUser(ctx context.Context, newUser *model.User) error {
+func (s *UserService) CreateUser(ctx context.Context, newUser *model.User) (*model.User, error) {
 	existing, err := s.userRepository.GetUserByEmail(ctx, newUser.Email)
 	if err != nil && !errors.Is(err, repository.ErrNotFound) {
-		return err
+		return nil, err
 	}
 	if existing != nil {
-		return fmt.Errorf("user with email %s already exists", newUser.Email)
+		return nil, fmt.Errorf("user with email %s already exists", newUser.Email)
 	}
 
+	hashed, err := auth.HashPassword(newUser.Password)
+	if err != nil {
+		return nil, err
+	}
+	newUser.Password = hashed
+
 	if err := s.userRepository.CreateUser(ctx, newUser); err != nil {
-		return err
+		return nil, err
 	}
 
 	created, err := s.userRepository.GetUserByEmail(ctx, newUser.Email)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	mapping := &model.UserRoleMapping{
 		UserID: created.UserID,
 		RoleID: customerRoleID,
 	}
-	return s.userRoleRepository.CreateUserRole(ctx, mapping)
+	if err := s.userRoleRepository.CreateUserRole(ctx, mapping); err != nil {
+		return nil, err
+	}
+	return created, nil
 }
 
 func (s *UserService) GetUser(ctx context.Context, id string) (*model.User, error) {
@@ -74,7 +84,11 @@ func (s *UserService) UpdateUser(ctx context.Context, id string, req *UpdateUser
 		updates["phone_number"] = *req.PhoneNumber
 	}
 	if req.Password != nil {
-		updates["password"] = *req.Password
+		hashed, err := auth.HashPassword(*req.Password)
+		if err != nil {
+			return err
+		}
+		updates["password"] = hashed
 	}
 	if req.FirstName != nil || req.LastName != nil {
 		first, last := splitFullName(existing.FullName)

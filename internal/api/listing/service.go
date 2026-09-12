@@ -99,11 +99,11 @@ func (ls *ListingService) GetListing(ctx context.Context, listingID string) (*mo
 	return ls.listingsRepository.GetListing(ctx, listingID)
 }
 
-func (ls *ListingService) UpdateListing(ctx context.Context, listingID string, req *UpdateListingRequest) error {
+func (ls *ListingService) UpdateListing(ctx context.Context, listingID, userID string, req *UpdateListingRequest) error {
 	if listingID == "" {
 		return errors.New("listing id is required")
 	}
-	if req.UserID == "" {
+	if userID == "" {
 		return errors.New("user id is required")
 	}
 
@@ -111,7 +111,7 @@ func (ls *ListingService) UpdateListing(ctx context.Context, listingID string, r
 	if err != nil {
 		return err
 	}
-	if err := ls.assertCanWriteListing(ctx, req.UserID, existing.CompanyID); err != nil {
+	if err := ls.assertCanWriteListing(ctx, userID, existing.CompanyID); err != nil {
 		return err
 	}
 

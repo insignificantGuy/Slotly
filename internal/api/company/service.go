@@ -14,6 +14,9 @@ import (
 )
 
 const orgAdminRoleID uint = 2
+const staffRoleID uint = 3
+
+var ErrForbidden = errors.New("user is not allowed to modify this company")
 
 type CompanyService struct {
 	companyRepository     company.CompanyRepository
@@ -82,13 +85,16 @@ func (s *CompanyService) GetCompany(ctx context.Context, id string) (*model.Comp
 	return company, nil
 }
 
-func (s *CompanyService) UpdateCompany(ctx context.Context, incoming *model.Company) error {
+func (s *CompanyService) UpdateCompany(ctx context.Context, userID string, incoming *model.Company) error {
 	existing, err := s.companyRepository.FetchCompanyByID(ctx, incoming.CompanyID)
 	if err != nil {
 		return err
 	}
 	if existing == nil {
 		return repository.ErrNotFound
+	}
+	if err := s.assertCanManageCompany(ctx, userID, incoming.CompanyID); err != nil {
+		return err
 	}
 	if incoming.Name != "" {
 		existing.Name = incoming.Name
@@ -111,7 +117,7 @@ func (s *CompanyService) UpdateCompany(ctx context.Context, incoming *model.Comp
 	return s.companyRepository.UpdateCompany(ctx, existing)
 }
 
-func (s *CompanyService) DeleteCompany(ctx context.Context, id string) error {
+func (s *CompanyService) DeleteCompany(ctx context.Context, id, userID string) error {
 	company, err := s.companyRepository.FetchCompanyByID(ctx, id)
 	if err != nil {
 		return err
@@ -119,6 +125,26 @@ func (s *CompanyService) DeleteCompany(ctx context.Context, id string) error {
 	if company == nil {
 		return fmt.Errorf("company not found")
 	}
+	if err := s.assertCanManageCompany(ctx, userID, id); err != nil {
+		return err
+	}
 	company.IsDeleted = true
 	return s.companyRepository.UpdateCompany(ctx, company)
+}
+
+func (s *CompanyService) assertCanManageCompany(ctx context.Context, userID, companyID string) error {
+	if userID == "" {
+		return errors.New("user id is required")
+	}
+	membership, err := s.companyRoleRepository.GetMembership(ctx, userID, companyID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return ErrForbidden
+		}
+		return err
+	}
+	if membership.RoleID != orgAdminRoleID && membership.RoleID != staffRoleID {
+		return ErrForbidden
+	}
+	return nil
 }

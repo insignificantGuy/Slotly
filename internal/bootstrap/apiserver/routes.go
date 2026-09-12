@@ -2,18 +2,13 @@ package apiserver
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/insignificantGuy/Slotly/internal/auth"
 )
 
-func SetupRoutes(router *gin.Engine) {
+func SetupRoutes(router *gin.Engine, tokens *auth.Tokens) {
 	SetupHealthRoutes(router)
-	SetupUserRoutes(router)
-	SetupCompanyRoutes(router)
-	SetupCompanyRoleRoutes(router)
-	SetupListingRoutes(router)
-	SetupUserRoleRoutes(router)
-	SetupRoleRoutes(router)
-	SetupSlotRoutes(router)
-	SetupBookingRoutes(router)
+	SetupPublicRoutes(router)
+	SetupProtectedRoutes(router, tokens)
 }
 
 func SetupHealthRoutes(router *gin.Engine) {
@@ -25,80 +20,52 @@ func SetupHealthRoutes(router *gin.Engine) {
 	})
 }
 
-func SetupUserRoutes(router *gin.Engine) {
-	userGroup := router.Group("/v1")
-	userController := controller.UserController
-	userGroup.POST("/users", userController.CreateUser)
-	userGroup.GET("/user/:id", userController.GetUser)
-	userGroup.PUT("/user/:id", userController.UpdateUser)
-	userGroup.DELETE("/user/:id", userController.DeleteUser)
+func SetupPublicRoutes(router *gin.Engine) {
+	public := router.Group("/v1")
+	public.POST("/users", controller.UserController.CreateUser)
+	public.POST("/auth/login", controller.AuthController.Login)
+	public.POST("/auth/refresh", controller.AuthController.Refresh)
+	public.POST("/auth/logout", controller.AuthController.Logout)
+
+	public.GET("/company/:id", controller.CompanyController.GetCompany)
+	public.GET("/listing/type/:type", controller.ListingController.GetListingByType)
+	public.GET("/listing/company/:company_id", controller.ListingController.GetListingByCompanyID)
+	public.GET("/listings/price/:price", controller.ListingController.GetListingsByPrice)
+	public.GET("/listing/:id", controller.ListingController.GetListing)
+	public.GET("/slot/:id", controller.SlotController.GetSlot)
+	public.GET("/listing/:id/slots", controller.SlotController.GetSlotsByListingID)
 }
 
-func SetupCompanyRoutes(router *gin.Engine) {
-	companyGroup := router.Group("/v1")
-	companyController := controller.CompanyController
-	companyGroup.POST("/companies", companyController.CreateCompany)
-	companyGroup.GET("/company/:id", companyController.GetCompany)
-	companyGroup.PUT("/company/:id", companyController.UpdateCompany)
-	companyGroup.DELETE("/company/:id", companyController.DeleteCompany)
-}
+func SetupProtectedRoutes(router *gin.Engine, tokens *auth.Tokens) {
+	authed := router.Group("/v1")
+	authed.Use(auth.RequireAuth(tokens))
 
-func SetupCompanyRoleRoutes(router *gin.Engine) {
-	companyRoleGroup := router.Group("/v1")
-	companyRoleController := controller.CompanyRoleController
-	companyRoleGroup.POST("/company-roles", companyRoleController.CreateCompanyRole)
-	companyRoleGroup.GET("/company-role/:id", companyRoleController.GetCompanyRole)
-	companyRoleGroup.PUT("/company-role/:id", companyRoleController.UpdateCompanyRole)
-	companyRoleGroup.DELETE("/company-role/:id", companyRoleController.DeleteCompanyRole)
-}
+	authed.POST("/auth/logout-all", controller.AuthController.LogoutAll)
+	authed.GET("/me", controller.UserController.GetMe)
+	authed.GET("/user/:id", controller.UserController.GetUser)
+	authed.PUT("/user/:id", controller.UserController.UpdateUser)
+	authed.DELETE("/user/:id", controller.UserController.DeleteUser)
 
-func SetupListingRoutes(router *gin.Engine) {
-	listingGroup := router.Group("/v1")
-	listingController := controller.ListingController
-	listingGroup.POST("/listings", listingController.CreateListing)
-	listingGroup.GET("/listing/type/:type", listingController.GetListingByType)
-	listingGroup.GET("/listing/company/:company_id", listingController.GetListingByCompanyID)
-	listingGroup.GET("/listings/price/:price", listingController.GetListingsByPrice)
-	listingGroup.GET("/listing/:id", listingController.GetListing)
-	listingGroup.PUT("/listing/:id", listingController.UpdateListing)
-	listingGroup.DELETE("/listing/:id", listingController.DeleteListing)
-}
+	authed.POST("/companies", controller.CompanyController.CreateCompany)
+	authed.PUT("/company/:id", controller.CompanyController.UpdateCompany)
+	authed.DELETE("/company/:id", controller.CompanyController.DeleteCompany)
 
-func SetupUserRoleRoutes(router *gin.Engine) {
-	userRoleGroup := router.Group("/v1")
-	userRoleController := controller.UserRoleController
-	userRoleGroup.POST("/user-roles", userRoleController.CreateUserRole)
-	userRoleGroup.GET("/user-role/:id", userRoleController.GetUserRole)
-	userRoleGroup.PUT("/user-role/:id", userRoleController.UpdateUserRole)
-	userRoleGroup.DELETE("/user-role/:id", userRoleController.DeleteUserRole)
-}
+	authed.GET("/company-role/:id", controller.CompanyRoleController.GetCompanyRole)
 
-func SetupRoleRoutes(router *gin.Engine) {
-	roleGroup := router.Group("/v1")
-	roleController := controller.RoleController
-	roleGroup.POST("/roles", roleController.CreateRole)
-	roleGroup.GET("/role/:id", roleController.GetRole)
-	roleGroup.PUT("/role/:id", roleController.UpdateRole)
-	roleGroup.DELETE("/role/:id", roleController.DeleteRole)
-}
+	authed.POST("/listings", controller.ListingController.CreateListing)
+	authed.PUT("/listing/:id", controller.ListingController.UpdateListing)
+	authed.DELETE("/listing/:id", controller.ListingController.DeleteListing)
 
-func SetupSlotRoutes(router *gin.Engine) {
-	slotGroup := router.Group("/v1")
-	slotController := controller.SlotController
-	slotGroup.POST("/slots", slotController.CreateSlot)
-	slotGroup.GET("/slot/:id", slotController.GetSlot)
-	slotGroup.PUT("/slot/:id", slotController.UpdateSlot)
-	slotGroup.DELETE("/slot/:id", slotController.DeleteSlot)
-	slotGroup.GET("/listing/:id/slots", slotController.GetSlotsByListingID)
-}
+	authed.GET("/user-role", controller.UserRoleController.GetUserRole)
 
-func SetupBookingRoutes(router *gin.Engine) {
-	bookingGroup := router.Group("/v1")
-	bookingController := controller.BookingController
-	bookingGroup.POST("/bookings", bookingController.CreateBooking)
-	bookingGroup.GET("/bookings/user/:user_id", bookingController.GetBookingsByUserID)
-	bookingGroup.GET("/bookings/listing/:listing_id", bookingController.GetBookingsByListingID)
-	bookingGroup.GET("/booking/:id", bookingController.GetBooking)
-	bookingGroup.PUT("/booking/:id", bookingController.UpdateBooking)
-	bookingGroup.DELETE("/booking/:id", bookingController.CancelBooking)
+	authed.POST("/slots", controller.SlotController.CreateSlot)
+	authed.PUT("/slot/:id", controller.SlotController.UpdateSlot)
+	authed.DELETE("/slot/:id", controller.SlotController.DeleteSlot)
+
+	authed.POST("/bookings", controller.BookingController.CreateBooking)
+	authed.GET("/bookings", controller.BookingController.GetMyBookings)
+	authed.GET("/bookings/listing/:listing_id", controller.BookingController.GetBookingsByListingID)
+	authed.GET("/booking/:id", controller.BookingController.GetBooking)
+	authed.PUT("/booking/:id", controller.BookingController.UpdateBooking)
+	authed.DELETE("/booking/:id", controller.BookingController.CancelBooking)
 }

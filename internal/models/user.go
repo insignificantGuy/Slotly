@@ -8,7 +8,7 @@ type User struct {
 	UserID      string    `gorm:"type:char(36);default:(UUID());primaryKey"`
 	FullName    string    `gorm:"size:255"`
 	Email       string    `gorm:"size:255;unique"`
-	Password    string    `gorm:"size:255"`
+	Password    string    `gorm:"size:255" json:"-"`
 	PhoneNumber string    `gorm:"size:20;unique"`
 	IsDeleted   bool      `gorm:"default:false"`
 	DeletedAt   time.Time `gorm:"type:datetime(3)"`

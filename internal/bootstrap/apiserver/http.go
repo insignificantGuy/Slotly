@@ -3,15 +3,18 @@ package apiserver
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	api "github.com/insignificantGuy/Slotly/internal/api"
+	"github.com/insignificantGuy/Slotly/internal/auth"
 	"github.com/insignificantGuy/Slotly/internal/database"
 )
 
 var (
 	svc        *api.Service
 	controller *api.Controller
+	tokens     *auth.Tokens
 )
 
 func Start() error {
@@ -35,7 +38,13 @@ func createRouter() (*gin.Engine, error) {
 		return nil, err
 	}
 
-	svc, err = api.NewService(db)
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		secret = "dev-insecure-jwt-secret"
+	}
+	tokens = auth.NewTokens(secret, 15*time.Minute)
+
+	svc, err = api.NewService(db, tokens)
 	if err != nil {
 		return nil, err
 	}
@@ -43,6 +52,6 @@ func createRouter() (*gin.Engine, error) {
 	controller = api.NewController(svc)
 
 	router := gin.Default()
-	SetupRoutes(router)
+	SetupRoutes(router, tokens)
 	return router, nil
 }

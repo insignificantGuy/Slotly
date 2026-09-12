@@ -65,7 +65,7 @@ func (s *SlotService) GetSlot(ctx context.Context, id uint) (*model.Slot, error)
 	return s.slotsRepository.GetSlotByID(ctx, id)
 }
 
-func (s *SlotService) UpdateSlot(ctx context.Context, id uint, req *UpdateSlotRequest) error {
+func (s *SlotService) UpdateSlot(ctx context.Context, id uint, userID string, req *UpdateSlotRequest) error {
 	if id == 0 {
 		return errors.New("slot id is required")
 	}
@@ -76,7 +76,7 @@ func (s *SlotService) UpdateSlot(ctx context.Context, id uint, req *UpdateSlotRe
 	if existing.IsBooked {
 		return ErrSlotBooked
 	}
-	if _, err := s.listingForWrite(ctx, existing.ListingID, req.UserID); err != nil {
+	if _, err := s.listingForWrite(ctx, existing.ListingID, userID); err != nil {
 		return err
 	}
 
