@@ -42,7 +42,11 @@ func NewService(db *gorm.DB) (*Service, error) {
 			companyroleRepo.NewCompanyRoleRepository(db),
 			companyRepo.NewCompanyRepository(db),
 		),
-		ListingService:  listing.NewListingService(listingRepo.NewListingRepository(db)),
+		ListingService: listing.NewListingService(
+			listingRepo.NewListingRepository(db),
+			companyroleRepo.NewCompanyRoleRepository(db),
+			companyRepo.NewCompanyRepository(db),
+		),
 		UserRoleService: userrole.NewUserRoleService(userRoles, users),
 		RoleService:     roles.NewRoleService(rolesRepo.NewRolesRepository(db)),
 		SlotService:     slots.NewSlotService(slotsRepo.NewSlotsRepository(db)),

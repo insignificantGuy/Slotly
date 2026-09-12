@@ -18,19 +18,5 @@ CREATE TABLE IF NOT EXISTS listings (
         ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-INSERT INTO listings (
-    listing_id, type, title, image, description, company_id, price, created_at, updated_at
-) VALUES (
-    'cccccccc-cccc-cccc-cccc-cccccccccccc',
-    'service',
-    'Haircut',
-    'https://example.com/haircut.jpg',
-    'Standard haircut appointment',
-    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-    25.00,
-    CURRENT_TIMESTAMP(3),
-    CURRENT_TIMESTAMP(3)
-);
-
 -- +goose Down
 DROP TABLE IF EXISTS listings;

@@ -17,13 +17,5 @@ CREATE TABLE IF NOT EXISTS user_role_mappings (
         ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-INSERT INTO user_role_mappings (created_at, updated_at, user_id, role_id)
-VALUES (
-    CURRENT_TIMESTAMP(3),
-    CURRENT_TIMESTAMP(3),
-    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-    1
-);
-
 -- +goose Down
 DROP TABLE IF EXISTS user_role_mappings;

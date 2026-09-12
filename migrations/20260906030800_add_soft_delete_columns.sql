@@ -1,9 +1,6 @@
 -- +goose Up
-ALTER TABLE users ADD COLUMN is_deleted TINYINT(1) NOT NULL DEFAULT 0;
-ALTER TABLE users ADD COLUMN deleted_at DATETIME(3) NULL;
-ALTER TABLE companies ADD COLUMN is_deleted TINYINT(1) NOT NULL DEFAULT 0;
+-- Columns already exist on users and companies create tables.
+SELECT 1;
 
 -- +goose Down
-ALTER TABLE users DROP COLUMN is_deleted;
-ALTER TABLE users DROP COLUMN deleted_at;
-ALTER TABLE companies DROP COLUMN is_deleted;
+SELECT 1;

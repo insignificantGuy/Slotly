@@ -18,18 +18,5 @@ CREATE TABLE IF NOT EXISTS slots (
         ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-INSERT INTO slots (
-    created_at, updated_at, listing_id, date, start_time, end_time, duration, is_booked
-) VALUES (
-    CURRENT_TIMESTAMP(3),
-    CURRENT_TIMESTAMP(3),
-    'cccccccc-cccc-cccc-cccc-cccccccccccc',
-    '2026-09-01 00:00:00.000',
-    '2026-09-01 10:00:00.000',
-    '2026-09-01 11:00:00.000',
-    60,
-    0
-);
-
 -- +goose Down
 DROP TABLE IF EXISTS slots;

@@ -2,6 +2,7 @@ package listing
 
 import (
 	"context"
+	"errors"
 
 	"github.com/insignificantGuy/Slotly/internal/models"
 	"github.com/insignificantGuy/Slotly/internal/repository"
@@ -25,7 +26,7 @@ func (r *listingRepository) CreateListing(ctx context.Context, listing *models.L
 }
 
 func (r *listingRepository) GetListing(ctx context.Context, id string) (*models.Listing, error) {
-	return r.BaseRepository.Get(ctx, id)
+	return r.GetListingByID(ctx, id)
 }
 
 func (r *listingRepository) UpdateListing(ctx context.Context, listing *models.Listing) error {
@@ -33,7 +34,14 @@ func (r *listingRepository) UpdateListing(ctx context.Context, listing *models.L
 }
 
 func (r *listingRepository) DeleteListing(ctx context.Context, id string) error {
-	return r.BaseRepository.Delete(ctx, id)
+	result := r.db.WithContext(ctx).Where("listing_id = ?", id).Delete(&models.Listing{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return repository.ErrNotFound
+	}
+	return nil
 }
 
 func (r *listingRepository) GetListingByType(ctx context.Context, listingType string) (*[]models.Listing, error) {
@@ -54,7 +62,11 @@ func (r *listingRepository) GetListingByCompanyID(ctx context.Context, companyID
 
 func (r *listingRepository) GetListingByID(ctx context.Context, id string) (*models.Listing, error) {
 	var listing models.Listing
-	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&listing).Error; err != nil {
+	err := r.db.WithContext(ctx).Where("listing_id = ?", id).First(&listing).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, repository.ErrNotFound
+		}
 		return nil, err
 	}
 	return &listing, nil
