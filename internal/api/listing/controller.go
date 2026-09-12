@@ -25,3 +25,19 @@ func (lc *ListingController) UpdateListing(c *gin.Context) {
 func (lc *ListingController) DeleteListing(c *gin.Context) {
 	c.JSON(200, gin.H{"message": "hello"})
 }
+
+func (lc *ListingController) GetListingByType(c *gin.Context) {
+	c.JSON(200, gin.H{"message": "hello"})
+}
+
+func (lc *ListingController) GetListingByCompanyID(c *gin.Context) {
+	c.JSON(200, gin.H{"message": "hello"})
+}
+
+func (lc *ListingController) GetListingByID(c *gin.Context) {
+	c.JSON(200, gin.H{"message": "hello"})
+}
+
+func (lc *ListingController) GetListingsByPrice(c *gin.Context) {
+	c.JSON(200, gin.H{"message": "hello"})
+}

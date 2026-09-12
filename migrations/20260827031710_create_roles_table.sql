@@ -5,7 +5,6 @@ CREATE TABLE IF NOT EXISTS roles (
     updated_at DATETIME(3),
     deleted_at DATETIME(3),
     name VARCHAR(255),
-    actions VARCHAR(255),
     PRIMARY KEY (id),
     UNIQUE KEY uni_roles_name (name),
     KEY idx_roles_deleted_at (deleted_at)
@@ -13,7 +12,10 @@ CREATE TABLE IF NOT EXISTS roles (
 
 -- Seed role id=1 referenced by user_role_mappings and company_role_mappings.
 INSERT INTO roles (id, created_at, updated_at, name, actions)
-VALUES (1, CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3), 'admin', 'all');
+VALUES (1, CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3), 'super_admin');
+VALUES (2, CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3), 'org_admin');
+VALUES (3, CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3), 'staff');
+VALUES (4, CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3), 'customer');
 
 -- +goose Down
 DROP TABLE IF EXISTS roles;

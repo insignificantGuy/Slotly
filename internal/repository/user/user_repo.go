@@ -37,6 +37,18 @@ func (r *userRepository) GetUser(ctx context.Context, id string) (*models.User, 
 	return &entity, nil
 }
 
+func (r *userRepository) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
+	var entity models.User
+	err := r.db.WithContext(ctx).First(&entity, "email = ?", email).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, repository.ErrNotFound
+		}
+		return nil, err
+	}
+	return &entity, nil
+}
+
 func (r *userRepository) UpdateUser(ctx context.Context, user *models.User) error {
 	return r.BaseRepository.Update(ctx, user)
 }

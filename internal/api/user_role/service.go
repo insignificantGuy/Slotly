@@ -2,38 +2,47 @@ package userrole
 
 import (
 	"context"
+	"errors"
 
 	model "github.com/insignificantGuy/Slotly/internal/models"
+	"github.com/insignificantGuy/Slotly/internal/repository"
+	userRepo "github.com/insignificantGuy/Slotly/internal/repository/user"
 	userroleRepo "github.com/insignificantGuy/Slotly/internal/repository/user_role"
 )
 
 type UserRoleService struct {
 	userRoleRepository userroleRepo.UserRoleRepository
+	userRepository     userRepo.UserRepository
 }
 
-func NewUserRoleService(userRoleRepository userroleRepo.UserRoleRepository) *UserRoleService {
-	return &UserRoleService{userRoleRepository: userRoleRepository}
+func NewUserRoleService(
+	userRoleRepository userroleRepo.UserRoleRepository,
+	userRepository userRepo.UserRepository,
+) *UserRoleService {
+	return &UserRoleService{
+		userRoleRepository: userRoleRepository,
+		userRepository:     userRepository,
+	}
 }
 
 func (s *UserRoleService) CreateUserRole(ctx context.Context, userID string, roleID int) error {
-	var userRole *model.UserRoleMapping
-	userRole.UserID = userID
-	userRole.RoleID = uint(roleID)
-
-	roles, err := s.userRoleRepository.GetUserRole(ctx, userRole.UserID)
-	if err != nil {
+	if _, err := s.userRepository.GetUser(ctx, userID); err != nil {
 		return err
 	}
 
-	if roles != nil {
-		err = s.userRoleRepository.UpdateUserRole(ctx, roles, userRole.RoleID)
-		if err != nil {
-			return err
-		}
-		return nil
+	existing, err := s.userRoleRepository.GetUserRole(ctx, userID)
+	if err != nil && !errors.Is(err, repository.ErrNotFound) {
+		return err
+	}
+	if existing != nil {
+		return errors.New("role already exists")
 	}
 
-	return s.userRoleRepository.CreateUserRole(ctx, userRole)
+	mapping := &model.UserRoleMapping{
+		UserID: userID,
+		RoleID: uint(roleID),
+	}
+	return s.userRoleRepository.CreateUserRole(ctx, mapping)
 }
 
 func (s *UserRoleService) GetUserRole(ctx context.Context, id string) (*model.UserRoleMapping, error) {
@@ -50,33 +59,25 @@ func (s *UserRoleService) GetUserRole(ctx context.Context, id string) (*model.Us
 }
 
 func (s *UserRoleService) UpdateUserRole(ctx context.Context, userID string, roleID int) error {
-	userRole, err := s.userRoleRepository.GetUserRole(ctx, userID)
-	if err != nil {
+	if _, err := s.userRepository.GetUser(ctx, userID); err != nil {
 		return err
 	}
-	if userRole == nil {
-		var newUserRole *model.UserRoleMapping
-		newUserRole.UserID = userID
-		newUserRole.RoleID = uint(roleID)
-		err = s.userRoleRepository.CreateUserRole(ctx, newUserRole)
-		if err != nil {
-			return err
+
+	userRole, err := s.userRoleRepository.GetUserRole(ctx, userID)
+	if err != nil && !errors.Is(err, repository.ErrNotFound) {
+		return err
+	}
+	if userRole == nil || errors.Is(err, repository.ErrNotFound) {
+		mapping := &model.UserRoleMapping{
+			UserID: userID,
+			RoleID: uint(roleID),
 		}
-		return nil
+		return s.userRoleRepository.CreateUserRole(ctx, mapping)
 	}
 	userRole.RoleID = uint(roleID)
-	err = s.userRoleRepository.UpdateUserRole(ctx, userRole, uint(roleID))
-	if err != nil {
-		return err
-	}
-	return nil
+	return s.userRoleRepository.UpdateUserRole(ctx, userRole, uint(roleID))
 }
 
 func (s *UserRoleService) DeleteUserRole(ctx context.Context, id string) error {
-	err := s.userRoleRepository.DeleteUserRole(ctx, id)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return s.userRoleRepository.DeleteUserRole(ctx, id)
 }

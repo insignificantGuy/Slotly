@@ -29,15 +29,21 @@ type Service struct {
 }
 
 func NewService(db *gorm.DB) (*Service, error) {
+	users := userRepo.NewUserRepository(db)
+	userRoles := userroleRepo.NewUserRoleRepository(db)
 	return &Service{
-		UserService:    user.NewUserService(userRepo.NewUserRepository(db)),
-		CompanyService: company.NewCompanyService(companyRepo.NewCompanyRepository(db)),
+		UserService:    user.NewUserService(users, userRoles),
+		CompanyService: company.NewCompanyService(
+			companyRepo.NewCompanyRepository(db),
+			companyroleRepo.NewCompanyRoleRepository(db),
+			users,
+		),
 		CompanyRoleService: companyrole.NewCompanyRoleService(
 			companyroleRepo.NewCompanyRoleRepository(db),
 			companyRepo.NewCompanyRepository(db),
 		),
 		ListingService:  listing.NewListingService(listingRepo.NewListingRepository(db)),
-		UserRoleService: userrole.NewUserRoleService(userroleRepo.NewUserRoleRepository(db)),
+		UserRoleService: userrole.NewUserRoleService(userRoles, users),
 		RoleService:     roles.NewRoleService(rolesRepo.NewRolesRepository(db)),
 		SlotService:     slots.NewSlotService(slotsRepo.NewSlotsRepository(db)),
 	}, nil

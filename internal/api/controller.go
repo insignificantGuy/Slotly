@@ -23,7 +23,7 @@ type Controller struct {
 func NewController(svc *Service) *Controller {
 	return &Controller{
 		UserController:        user.NewUserController(svc.UserService),
-		CompanyController:     company.NewCompanyController(svc.CompanyService),
+		CompanyController:     company.NewCompanyController(svc.CompanyService, svc.CompanyRoleService),
 		CompanyRoleController: companyrole.NewCompanyRoleController(svc.CompanyRoleService),
 		ListingController:     listing.NewListingController(svc.ListingService),
 		UserRoleController:    userrole.NewUserRoleController(svc.UserRoleService),

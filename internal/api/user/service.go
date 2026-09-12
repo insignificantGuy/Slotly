@@ -2,31 +2,51 @@ package user
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	model "github.com/insignificantGuy/Slotly/internal/models"
+	"github.com/insignificantGuy/Slotly/internal/repository"
 	"github.com/insignificantGuy/Slotly/internal/repository/user"
+	userrole "github.com/insignificantGuy/Slotly/internal/repository/user_role"
 )
 
+const customerRoleID uint = 4
+
 type UserService struct {
-	userRepository user.UserRepository
+	userRepository     user.UserRepository
+	userRoleRepository userrole.UserRoleRepository
 }
 
-func NewUserService(userRepository user.UserRepository) *UserService {
-	return &UserService{userRepository: userRepository}
+func NewUserService(userRepository user.UserRepository, userRoleRepository userrole.UserRoleRepository) *UserService {
+	return &UserService{userRepository: userRepository, userRoleRepository: userRoleRepository}
 }
 
-func (s *UserService) CreateUser(ctx context.Context, user *model.User) error {
-	user, err := s.userRepository.GetUser(ctx, user.UserID)
+func (s *UserService) CreateUser(ctx context.Context, newUser *model.User) error {
+	existing, err := s.userRepository.GetUserByEmail(ctx, newUser.Email)
+	if err != nil && !errors.Is(err, repository.ErrNotFound) {
+		return err
+	}
+	if existing != nil {
+		return fmt.Errorf("user with email %s already exists", newUser.Email)
+	}
+
+	if err := s.userRepository.CreateUser(ctx, newUser); err != nil {
+		return err
+	}
+
+	created, err := s.userRepository.GetUserByEmail(ctx, newUser.Email)
 	if err != nil {
 		return err
 	}
-	if user != nil {
-		return fmt.Errorf("user with id %s already exists", user.UserID)
+
+	mapping := &model.UserRoleMapping{
+		UserID: created.UserID,
+		RoleID: customerRoleID,
 	}
-	return s.userRepository.CreateUser(ctx, user)
+	return s.userRoleRepository.CreateUserRole(ctx, mapping)
 }
 
 func (s *UserService) GetUser(ctx context.Context, id string) (*model.User, error) {

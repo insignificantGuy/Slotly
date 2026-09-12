@@ -58,6 +58,10 @@ func SetupListingRoutes(router *gin.Engine) {
 	listingGroup.GET("/listing/:id", listingController.GetListing)
 	listingGroup.PUT("/listing/:id", listingController.UpdateListing)
 	listingGroup.DELETE("/listing/:id", listingController.DeleteListing)
+	listingGroup.GET("/listing/type/:type", listingController.GetListingByType)
+	listingGroup.GET("/listing/company/:company_id", listingController.GetListingByCompanyID)
+	listingGroup.GET("/listing/:id", listingController.GetListingByID)
+	listingGroup.GET("/listings/price/:price", listingController.GetListingsByPrice)
 }
 
 func SetupUserRoleRoutes(router *gin.Engine) {

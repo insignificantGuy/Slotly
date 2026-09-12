@@ -37,6 +37,18 @@ func (r *companyRoleRepository) GetCompanyRole(ctx context.Context, id string) (
 	return &entity, nil
 }
 
+func (r *companyRoleRepository) GetMembership(ctx context.Context, userID, companyID string) (*models.CompanyRoleMapping, error) {
+	var entity models.CompanyRoleMapping
+	err := r.db.WithContext(ctx).First(&entity, "user_id = ? AND company_id = ?", userID, companyID).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, repository.ErrNotFound
+		}
+		return nil, err
+	}
+	return &entity, nil
+}
+
 func (r *companyRoleRepository) UpdateCompanyRole(ctx context.Context, companyRole *models.CompanyRoleMapping) error {
 	return r.BaseRepository.Update(ctx, companyRole)
 }
